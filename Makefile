@@ -1,26 +1,32 @@
 PROJECT_ROOT = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-DOCKER_IMAGE ?= lambci/lambda-base-2:build
+IMAGE_NAME ?= imagemagick-lambda-builder
+IMAGE_TAG ?= al2023-arm64
 TARGET ?=/opt/
 
 MOUNTS = -v $(PROJECT_ROOT):/var/task \
 	-v $(PROJECT_ROOT)result:$(TARGET)
 
-DOCKER = docker run -t --rm -w=/var/task/build
-build result: 
+PODMAN = podman run -t --rm -w=/var/task/build --platform linux/arm64
+
+.PHONY: build-image
+build-image:
+	podman build --platform linux/arm64 -t $(IMAGE_NAME):$(IMAGE_TAG) .
+
+build result:
 	mkdir $@
 
 clean:
 	rm -rf build result
 
 list-formats:
-	$(DOCKER) $(MOUNTS) --entrypoint /opt/bin/identify -t $(DOCKER_IMAGE) -list format
+	$(PODMAN) $(MOUNTS) --entrypoint /opt/bin/identify $(IMAGE_NAME):$(IMAGE_TAG) -list format
 
 bash:
-	$(DOCKER) $(MOUNTS) --entrypoint /bin/bash -t $(DOCKER_IMAGE)
+	$(PODMAN) $(MOUNTS) --entrypoint /bin/bash $(IMAGE_NAME):$(IMAGE_TAG)
 
-all libs: 
-	$(DOCKER) $(MOUNTS) --entrypoint /usr/bin/make -t $(DOCKER_IMAGE) TARGET_DIR=$(TARGET) -f ../Makefile_ImageMagick $@
+all libs: build result
+	$(PODMAN) $(MOUNTS) --entrypoint /usr/bin/make $(IMAGE_NAME):$(IMAGE_TAG) TARGET_DIR=$(TARGET) -f ../Makefile_ImageMagick $@
 
 
 STACK_NAME ?= imagemagick-layer 

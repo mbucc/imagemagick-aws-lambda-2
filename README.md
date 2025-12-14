@@ -1,8 +1,8 @@
 # ImageMagick for AWS Lambda
 
-Scripts to compile ImageMagick utilities for AWS Lambda instances powered by Amazon Linux 2.x, such as the `nodejs10.x` or `nodejs12.x` or `python 3.8` runtime, and the updated 2018.03 Amazon Linux 1 runtimes. 
+Scripts to compile ImageMagick utilities for AWS Lambda instances powered by Amazon Linux 2023 (arm64 architecture), compatible with modern Lambda runtimes such as `nodejs18.x`, `nodejs20.x`, `python3.11`, `python3.12`, and other arm64-based runtimes.
 
-Amazon Linux 2 instances for Lambda no longer contain system utilities, so `convert`, `mogrify` and `identify` from the [ImageMagick](https://imagemagick.org) package are no longer available. 
+Amazon Linux 2023 instances for Lambda no longer contain system utilities, so `convert`, `mogrify` and `identify` from the [ImageMagick](https://imagemagick.org) package are no longer available. 
 
 ## PTI Specific Usage
 First, make sure you have the proper amazon credentials setup. Then run: 
@@ -20,18 +20,20 @@ For manual deployments and custom builds, read below...
 
 ## Prerequisites
 
-* Docker desktop
+* Podman (or Docker)
 * Unix Make environment
 * AWS command line utilities (just for deployment)
+* arm64 architecture support (native or via QEMU emulation)
 
 ## Compiling the code
 
-* start Docker services
+* Ensure Podman is running
+* `make build-image` (first time only, to build the container image)
 * `make all`
 
 There are two `make` scripts in this project.
 
-* [`Makefile`](Makefile) is intended to run on the build system, and just starts a Docker container matching the AWS Linux 2 environment for Lambda runtimes to compile ImageMagick using the second script.
+* [`Makefile`](Makefile) is intended to run on the build system, and uses Podman to start a container matching the AWS Linux 2023 (arm64) environment for Lambda runtimes to compile ImageMagick using the second script.
 * [`Makefile_ImageMagick`](Makefile_ImageMagick) is the script that will run inside the container, and actually compile binaries. 
 
 The output will be in the `result` dir.
@@ -40,7 +42,9 @@ The output will be in the `result` dir.
 
 By default, this compiles a version expecting to run as a Lambda layer from `/opt`. You can change the expected location by providing a `TARGET` variable when invoking `make`.
 
-The default Docker image used is `lambci/lambda-base-2:build`. To use a different base, provide a `DOCKER_IMAGE` variable when invoking `make`.
+The build uses the official AWS Lambda base image `public.ecr.aws/lambda/provided:al2023-arm64`. The container image is built locally and tagged as `imagemagick-lambda-builder:al2023-arm64`. You can customize the image name and tag using `IMAGE_NAME` and `IMAGE_TAG` variables.
+
+Current ImageMagick version: **7.1.2-10** (December 2025)
 
 Modify the versions of libraries or ImageMagick directly in [`Makefile_ImageMagick`](Makefile_ImageMagick).
 

@@ -88,8 +88,21 @@ jobs:
         with:
           path: ".github/workflows/requirements.txt"
 
+      - name: Install Podman
+        shell: bash
+        run: |
+          echo "Installing Podman..."
+          sudo apt-get update
+          sudo apt-get -y install podman
+          podman --version
+
       - name: Configure AWS Region
         run: echo "AWS_DEFAULT_REGION=${{ env.AWS_REGION }}" >> $GITHUB_ENV
+
+      - name: Build container image
+        shell: bash
+        run: |
+          make build-image
 
       - name: Run deploy (default stackname)
         if: env.NEW_STACK_NAME == '-'
