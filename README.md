@@ -26,9 +26,19 @@ make all && make deploy DEPLOYMENT_BUCKET=pti-<ENV>-cluster-assets-bucket STACK_
 There are two `make` scripts in this project.
 
 * [`Makefile`](Makefile) is intended to run on the build system, and uses Podman to start a container matching the AWS Linux 2023 (arm64) environment for Lambda runtimes to compile ImageMagick using the second script.
-* [`Makefile_ImageMagick`](Makefile_ImageMagick) is the script that will run inside the container, and actually compile binaries. 
+* [`Makefile_ImageMagick`](Makefile_ImageMagick) is the script that will run inside the container, and actually compile binaries.
 
 The output will be in the `result` dir.
+
+### Building the Lambda layer ZIP
+
+To build a ready-to-use Lambda layer ZIP file:
+
+```bash
+make imagemagick-layer.zip
+```
+
+This creates `imagemagick-layer.zip` in the project root, containing the `/opt` directory structure with all ImageMagick binaries and libraries, ready to upload to AWS Lambda as a layer.
 
 ### Configuring the build
 

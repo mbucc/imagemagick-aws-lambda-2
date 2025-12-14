@@ -17,7 +17,7 @@ build result:
 	mkdir $@
 
 clean:
-	rm -rf build result
+	rm -rf build result imagemagick-layer.zip
 
 list-formats:
 	$(PODMAN) $(MOUNTS) --entrypoint /opt/bin/identify $(IMAGE_NAME):$(IMAGE_TAG) -list format
@@ -33,13 +33,22 @@ STACK_NAME ?= imagemagick-layer
 
 result/bin/identify: all
 
-/tmp/layer.zip: result/bin/identify build
+imagemagick-layer.zip: result/bin/identify
 	# imagemagick has a ton of symlinks, and just using the source dir in the template
-	# would cause all these to get packaged as individual files. 
-	# (https://github.com/aws/aws-cli/issues/2900) 
+	# would cause all these to get packaged as individual files.
+	# (https://github.com/aws/aws-cli/issues/2900)
 	#
 	# This is why we zip outside, using -y to store them as symlinks
-	
+	@echo "Creating layer zip at $(PROJECT_ROOT)imagemagick-layer.zip"
+	cd result && zip -ry ../imagemagick-layer.zip *
+
+/tmp/layer.zip: result/bin/identify build
+	# imagemagick has a ton of symlinks, and just using the source dir in the template
+	# would cause all these to get packaged as individual files.
+	# (https://github.com/aws/aws-cli/issues/2900)
+	#
+	# This is why we zip outside, using -y to store them as symlinks
+
 	cd result && zip -ry $@ *
 
 /tmp/output.yaml: cleanup template.yaml /tmp/layer.zip
