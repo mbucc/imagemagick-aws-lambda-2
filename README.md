@@ -10,14 +10,6 @@ First, make sure you have the proper amazon credentials setup. Then run:
 make all && make deploy DEPLOYMENT_BUCKET=pti-<ENV>-cluster-assets-bucket STACK_NAME=serverlessrepo-pti-<ENV>-image-magick-lambda-layer2
 ```
 
-## Usage
-
-Absolutely the easiest way of using this is to pull it directly from the AWS Serverless Application repository into a CloudFormation/SAM application, or deploy directly from the Serverless Application Repository into your account, and then link as a layer.
-
-For more information, check out the [image-magick-lambda-layer](https://serverlessrepo.aws.amazon.com/applications/arn:aws:serverlessrepo:us-east-1:145266761615:applications~image-magick-lambda-layer) application in the Serverless App Repository.
-
-For manual deployments and custom builds, read below...
-
 ## Prerequisites
 
 * Podman (or Docker)
