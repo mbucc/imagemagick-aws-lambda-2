@@ -22,7 +22,7 @@ Migrate the ImageMagick Lambda layer build process from:
 
 ## 1. Create New Dockerfile
 
-**File:** `/Users/markbucciarelli/src/mycode/imagemagick-aws-lambda-2/Dockerfile`
+**File:** `imagemagick-aws-lambda-2/Dockerfile`
 
 Currently no Dockerfile exists. Need to create one based on:
 
@@ -57,7 +57,7 @@ Key considerations:
 
 ## 2. Update Main Makefile
 
-**File:** `/Users/markbucciarelli/src/mycode/imagemagick-aws-lambda-2/Makefile`
+**File:** `imagemagick-aws-lambda-2/Makefile`
 
 Changes required:
 
@@ -87,7 +87,7 @@ build-image:
 
 ## 3. Update ImageMagick Version
 
-**File:** `/Users/markbucciarelli/src/mycode/imagemagick-aws-lambda-2/Makefile_ImageMagick`
+**File:** `imagemagick-aws-lambda-2/Makefile_ImageMagick`
 
 Version updates needed:
 
@@ -107,7 +107,7 @@ Strategy: Start with only ImageMagick update, update deps only if build fails.
 
 ## 4. Update GitHub Actions Workflow
 
-**File:** `/Users/markbucciarelli/src/mycode/imagemagick-aws-lambda-2/.github/workflows/build.yml`
+**File:** `imagemagick-aws-lambda-2/.github/workflows/build.yml`
 
 Changes required:
 
@@ -140,13 +140,13 @@ Update deploy steps (lines 94-104) to include:
 
 **Files to update:**
 
-- `/Users/markbucciarelli/src/mycode/imagemagick-aws-lambda-2/README.md`
+- `imagemagick-aws-lambda-2/README.md`
   - Update prerequisites (Podman instead of Docker)
   - Update base image reference
   - Update ImageMagick version
   - Add arm64 architecture note
 
-- `/Users/markbucciarelli/src/mycode/imagemagick-aws-lambda-2/README-SAR.md`
+- `imagemagick-aws-lambda-2/README-SAR.md`
   - Update version from 7.0.8-45 to new version
   - Update Lambda runtime compatibility
 
