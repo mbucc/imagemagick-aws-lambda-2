@@ -4,6 +4,16 @@ author: Mark Bucciarelli
 title: Migration Plan - AWS Lambda Base Images + Podman + Latest ImageMagick
 ---
 
+# Status: superseded (historical)
+
+This document is the original plan for the December 2025 migration off the
+`lambci` Docker base. That migration is complete, and the build has since moved
+on again: podman was removed from the `Makefile` (which is now a native AL2023
+build), both `arm64` and `x86_64` are built natively on matching EC2 instances,
+and layers ship as GitHub release assets rather than via CloudFormation/SAR.
+The details below are kept for history — see the [README](../README.md) and
+[building-layer-zip.md](building-layer-zip.md) for how the build works today.
+
 # Overview
 
 Migrate the ImageMagick Lambda layer build process from:

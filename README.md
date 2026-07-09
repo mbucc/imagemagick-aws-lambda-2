@@ -1,59 +1,77 @@
 # ImageMagick for AWS Lambda
 
-Scripts to compile ImageMagick utilities for AWS Lambda instances powered by Amazon Linux 2023 (arm64 architecture), compatible with modern Lambda runtimes such as `nodejs18.x`, `nodejs20.x`, `python3.11`, `python3.12`, and other arm64-based runtimes.
+Scripts to compile ImageMagick utilities for AWS Lambda instances powered by Amazon Linux 2023, for both `arm64` (Graviton) and `x86_64`, compatible with modern Lambda runtimes such as `nodejs20.x`, `python3.12`, and other AL2023-based runtimes.
 
 Amazon Linux 2023 instances for Lambda no longer contain system utilities, so `convert`, `mogrify` and `identify` from the [ImageMagick](https://imagemagick.org) package are no longer available. 
 
-## PTI Specific Usage
-First, make sure you have the proper amazon credentials setup. Then run: 
-```
-make all && make deploy DEPLOYMENT_BUCKET=pti-<ENV>-cluster-assets-bucket STACK_NAME=serverlessrepo-pti-<ENV>-image-magick-lambda-layer2
-```
-
 ## Prerequisites
 
-* Podman (or Docker)
-* Unix Make environment
-* AWS command line utilities (just for deployment)
-* arm64 architecture support (native or via QEMU emulation)
+* Podman (for local builds)
+* AWS CLI with credentials for your **dev** account (for the EC2 builds)
+* A Unix shell (the wrappers are POSIX `sh`)
 
-## Compiling the code
+## How the build is structured
 
-* Ensure Podman is running
-* `make build-image` (first time only, to build the container image)
-* `make all`
+The [`Makefile`](Makefile) is a plain **native** Amazon Linux 2023 build — it
+assumes it is already running on AL2023 and does not invoke podman itself. The
+actual per-library compile lives in
+[`Makefile_ImageMagick`](Makefile_ImageMagick).
 
-There are two `make` scripts in this project.
+Getting *onto* AL2023 is the job of two thin wrapper scripts. Both run the
+identical Makefile; they differ only in how they provide the environment, and
+each builds **natively for its host CPU** (no QEMU emulation):
 
-* [`Makefile`](Makefile) is intended to run on the build system, and uses Podman to start a container matching the AWS Linux 2023 (arm64) environment for Lambda runtimes to compile ImageMagick using the second script.
-* [`Makefile_ImageMagick`](Makefile_ImageMagick) is the script that will run inside the container, and actually compile binaries.
+| Script | Environment | Builds |
+|--------|-------------|--------|
+| [`scripts/build-local.sh`](scripts/build-local.sh) | podman container on your laptop | your laptop's own arch |
+| [`scripts/build-on-ec2.sh`](scripts/build-on-ec2.sh) | a matching-arch AL2023 EC2 box | `arm64` or `amd64`, whichever you pass |
 
-The output will be in the `result` dir.
-
-### Building the Lambda layer ZIP
-
-To build a ready-to-use Lambda layer ZIP file:
+### Building locally
 
 ```bash
-make imagemagick-layer.zip
+scripts/build-local.sh
 ```
 
-This creates `imagemagick-layer.zip` in the project root, containing the `/opt` directory structure with all ImageMagick binaries and libraries, ready to upload to AWS Lambda as a layer.
+Builds for your laptop's architecture inside an AL2023 podman container and
+writes `imagemagick-layer.zip` to the project root.
+
+### Building a release (both architectures)
+
+```bash
+AWS_PROFILE=<dev-profile> scripts/build-on-ec2.sh arm64
+AWS_PROFILE=<dev-profile> scripts/build-on-ec2.sh amd64
+```
+
+Each invocation launches a one-shot AL2023 instance of the matching
+architecture, builds natively, copies the zip back as
+`imagemagick-7.1.2-al2023-<arch>.zip`, and terminates the instance. See the
+script header for env overrides (`INSTANCE_TYPE`, `AWS_DEFAULT_REGION`,
+`KEEP_INSTANCE`).
+
+The resulting zip contains the `/opt` directory structure (binaries,
+libraries, and the hardened `policy.xml`), ready to publish as a Lambda layer.
 
 ### Configuring the build
 
-By default, this compiles a version expecting to run as a Lambda layer from `/opt`. You can change the expected location by providing a `TARGET` variable when invoking `make`.
+The layer installs to `/opt` (the `TARGET_DIR` variable). This must stay `/opt`:
+ImageMagick bakes that path in at compile time and a Lambda layer unzips there
+— see [Security policy](#security-policy) for why it matters to `policy.xml`.
 
-The build uses the official AWS Lambda base image `public.ecr.aws/lambda/provided:al2023-arm64`. The container image is built locally and tagged as `imagemagick-lambda-builder:al2023-arm64`. You can customize the image name and tag using `IMAGE_NAME` and `IMAGE_TAG` variables.
+The local build uses the official multi-arch AWS Lambda base image
+`public.ecr.aws/lambda/provided:al2023` (see the [`Dockerfile`](Dockerfile));
+podman's `--platform` selects the arch matching your laptop.
 
-Current ImageMagick version: **7.1.2-10** (December 2025)
+Current ImageMagick version: **7.1.2-27** (July 5, 2026)
 
 Modify the versions of libraries or ImageMagick directly in [`Makefile_ImageMagick`](Makefile_ImageMagick).
 
 ### Experimenting
 
-* `make bash` to open an interactive shell with all the build directories mounted
-* `make libs` to make only the libraries, useful to test building additional libraries without building ImageMagick itself
+These `make` targets run inside the build environment (via a wrapper, or on the
+EC2 box), since they execute the freshly built Linux binaries:
+
+* `make libs` — build only the libraries, useful when adding a new format
+* `make check` — print the built binary's active security policy and verify it matches expectations (see [`scripts/check-policy.sh`](scripts/check-policy.sh))
 
 ### Bundled libraries
 
@@ -66,29 +84,96 @@ These libraries are currently bundled:
 * libjpeg
 * openjpeg2
 * libwebp
+* libheif (+ libde265)
+* lcms2
 
-## Deploying to AWS as a layer
+## Security policy
 
-Run the following command to deploy the compiled result as a layer in your AWS account.
+The build hardens ImageMagick by compiling with
+`--with-security-policy=secure` (see ImageMagick's
+[security policy guide](https://imagemagick.org/security-policy/#gsc.tab=0)).
+This installs a `policy.xml` (shipped in the layer at
+`/opt/etc/ImageMagick-7/policy.xml` and loaded automatically at runtime) that
+disables the coders and delegates most often abused in image-processing
+exploits — `SVG`, `MSL`, `MVG`, `URL`/`HTTP`/`HTTPS`, and external delegates —
+while leaving the ordinary raster formats (JPEG/PNG/WebP/TIFF/HEIC) working.
+
+The `secure` profile also clamps resource usage hard: its default
+`width`/`height` limit of `8KP` (8000 px) **rejects a full-resolution 48 MP
+iPhone photo** (8064 × 6048). So after the build, the
+[`scripts/secure-policy-allow-48mp.sh`](scripts/secure-policy-allow-48mp.sh)
+step widens just the resource ceilings — everything else in `secure` stays:
+
+| Resource           | `secure` default | Widened to | Why                                  |
+|--------------------|------------------|------------|--------------------------------------|
+| `width` / `height` | 8KP              | 16KP       | 48 MP is 8064 × 6048                  |
+| `area`             | 8KP              | 256MP      | ≫ 48 MP with headroom                |
+| `memory`           | 768MiB           | 1GiB       | 48 MP at Q16 HDRI ≈ 372 MiB decoded  |
+
+### Sizing the Lambda's memory
+
+This is a **Q16 HDRI** build, so every pixel is RGBA at 16 bits = 4 channels ×
+2 bytes = **8 bytes/pixel** in the decoded pixel cache. Worked example for an
+iPhone 17 48 MP photo:
 
 ```
-make deploy DEPLOYMENT_BUCKET=<YOUR BUCKET NAME>
+pixels        = 8064 × 6048            = 48,771,072   (~48.8 MP)
+decoded cache = 48,771,072 × 8 bytes   = 390,168,576 bytes  ≈ 372 MiB
 ```
 
-### configuring the deployment
+`convert` holds the full source cache while it resizes, so budget for roughly
+that 372 MiB **plus** a working copy and the JVM handler's own heap. Practical
+floor: give the Lambda **≥ 1024 MiB** (1 GiB) for a single 48 MP image; 1536
+MiB is comfortable if the handler does other work. The `memory` limit in
+`policy.xml` (1 GiB above) is ImageMagick's own cap and should stay at or below
+the Lambda's configured memory. Verify the active policy in a running layer
+with `magick -list policy`.
 
-By default, this uses imagemagick-layer as the stack name. Provide a `STACK_NAME` variable when
-calling `make deploy` to use an alternative name.
+## Publishing the layer
 
-### example usage
+The two zips (`imagemagick-7.1.2-al2023-arm64.zip` and
+`imagemagick-7.1.2-al2023-x86_64.zip`) are published as a GitHub release. Each
+`build-on-ec2.sh` run prints the artifact's `sha256`; record both in the
+release notes so consumers can pin and verify them.
 
-An example project is in the [example](example) directory. It sets up two buckets, and listens to file uploads on the first bucket to convert and generate thumbnails, saving to the second bucket. You can deploy it from the root Makefile using:
-
+```sh
+gh release create im-7.1.2-al2023 \
+  imagemagick-7.1.2-al2023-arm64.zip \
+  imagemagick-7.1.2-al2023-x86_64.zip \
+  --title "ImageMagick 7.1.2 for AWS Lambda AL2023 (arm64 + x86_64)"
 ```
-make deploy-example DEPLOYMENT_BUCKET=<YOUR BUCKET NAME>
-```
 
+Downstream projects pin a release asset by URL (for example, a Bazel
+`http_file` with the recorded `sha256`) and attach it as a Lambda layer — no
+build step in the consuming project.
 
+## Installing the layer
+
+Attach a released zip to a Lambda function as a layer. **The layer's
+architecture must match the function's architecture** (`arm64` layer for a
+Graviton function, `x86_64` layer for an x86 function).
+
+1. Download the asset for your architecture from the GitHub release — e.g.
+   `imagemagick-7.1.2-al2023-arm64.zip` — or pin its URL in your IaC.
+
+2. Publish it as a Lambda layer version:
+
+   ```sh
+   aws lambda publish-layer-version \
+     --layer-name imagemagick \
+     --zip-file fileb://imagemagick-7.1.2-al2023-arm64.zip \
+     --compatible-architectures arm64 \
+     --compatible-runtimes provided.al2023 nodejs20.x python3.12
+   ```
+
+3. Attach the returned `LayerVersionArn` to your function — via the console,
+   `aws lambda update-function-configuration --function-name <fn> --layers <arn>`,
+   or your IaC (CDK/Terraform/etc.).
+
+At runtime the binaries live under `/opt/bin` (`/opt/bin/convert`,
+`/opt/bin/identify`, …) and the hardened `policy.xml` loads automatically from
+`/opt/etc/ImageMagick-7/`. Confirm the policy is active with
+`/opt/bin/identify -list policy`.
 
 ## Info on scripts
 

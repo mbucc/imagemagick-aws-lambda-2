@@ -1,4 +1,6 @@
-FROM public.ecr.aws/lambda/provided:al2023-arm64
+# Multi-arch tag: podman's --platform (set by the Makefile to the host arch)
+# selects the matching arm64 or amd64 image from this manifest list.
+FROM public.ecr.aws/lambda/provided:al2023
 
 RUN dnf install -y \
     gcc \
