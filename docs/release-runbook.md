@@ -71,18 +71,25 @@ Authenticate the GitHub CLI first (once per machine):
 gh auth login
 ```
 
-Then create the release. `gh release create` creates the `im-7.1.2-al2023` tag
-at the current tip of the remote default branch — i.e. the commit you pushed in
-Step 1:
+Each release gets its own **immutable** tag — never reuse one. Encode the full
+ImageMagick version plus a build revision, and bump the revision (`-r1` → `-r2`
+→ …) whenever you rebuild the *same* ImageMagick version with different options
+(e.g. the Q16→Q8 change); reset to `-r1` on a new ImageMagick version.
+
+`gh release create` creates this tag at the current tip of the remote default
+branch — i.e. the commit you pushed in Step 1:
 
 ```sh
-gh release create im-7.1.2-al2023 \
+VERSION=7.1.2-27                 # ImageMagick version being released
+TAG=im-$VERSION-al2023-r1        # bump -r2, -r3, … on each rebuild of $VERSION
+
+gh release create "$TAG" \
   imagemagick-7.1.2-al2023-arm64.zip \
   imagemagick-7.1.2-al2023-x86_64.zip \
   -R mbucc/imagemagick-aws-lambda-2 \
-  --title "ImageMagick 7.1.2 for AWS Lambda AL2023 (arm64 + x86_64)" \
+  --title "$TAG" \
   --notes "$(cat <<'EOF'
-Prebuilt ImageMagick 7.1.2-27 Lambda layers for AL2023, built from source in a
+Prebuilt ImageMagick Lambda layers for AL2023, built from source in a
 matching-arch environment (NOT from RPMs — dnf installs ImageMagick 6).
 
 Hardened with the `secure` policy (SVG/MSL/MVG/URL and external delegates
@@ -98,23 +105,25 @@ EOF
 )"
 ```
 
-To update assets on an existing release (e.g. after a rebuild), re-upload with
-`--clobber` instead of recreating it:
+A normal re-release gets a new `-r` tag. Use `--clobber` **only** to correct a
+release you *just* published and nobody has pinned yet — it swaps the bytes
+behind an existing URL, which breaks any consumer that already pinned its
+`sha256`:
 
 ```sh
-gh release upload im-7.1.2-al2023 imagemagick-7.1.2-al2023-*.zip \
+gh release upload "$TAG" imagemagick-7.1.2-al2023-*.zip \
   --clobber -R mbucc/imagemagick-aws-lambda-2
 ```
 
 ## Fixing a tag created too early
 
-If you ran `gh release create` before pushing your commit, the tag
-`im-7.1.2-al2023` points at the old commit. Move it to the pushed commit and
-force-push the tag:
+If you ran `gh release create` before pushing your commit, the release tag
+points at the old commit. Move it to the pushed commit and force-push the tag
+(re-set `$TAG` first if you are in a new shell):
 
 ```sh
-git tag -f im-7.1.2-al2023 master
-git push --force origin refs/tags/im-7.1.2-al2023
+git tag -f "$TAG" master
+git push --force origin "refs/tags/$TAG"
 ```
 
 Refresh the release page to confirm it now shows the correct commit. Doing
