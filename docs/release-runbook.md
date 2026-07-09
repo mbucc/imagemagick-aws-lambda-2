@@ -19,9 +19,25 @@ The build is done and lives in the repo:
 - `scripts/secure-policy-allow-48mp.sh` / `scripts/check-policy.sh` — policy
   widening + verification.
 
-What remains is running the two release builds and publishing them.
+What remains is committing your changes, running the two release builds, and
+publishing them.
 
-## Step 1: Log in to AWS
+## Step 1: Commit and push your changes
+
+Create the release from a commit that is **already on GitHub**. `gh release
+create` (Step 4) tags the latest commit on the remote default branch, so
+anything you have not pushed will not be in the release — and if you release
+before pushing, the tag lands on the *previous* commit and you must move it
+afterward (see [Fixing a tag created too early](#fixing-a-tag-created-too-early)).
+
+```sh
+git add -A
+git commit -m "…"          # your build / policy / doc changes
+git push origin master
+git status                 # confirm: "up to date with 'origin/master'"
+```
+
+## Step 2: Log in to AWS
 
 The EC2 build uses your **dev** AWS account. Refresh SSO credentials first
 (substitute your own profile name for `<dev-profile>`):
@@ -30,10 +46,10 @@ The EC2 build uses your **dev** AWS account. Refresh SSO credentials first
 aws sso login --profile <dev-profile>
 ```
 
-## Step 2: Build both architectures on EC2
+## Step 3: Build both architectures on EC2
 
-Each run launches a one-shot instance, builds natively, copies the zip back,
-and terminates the instance.
+Each run launches a one-shot instance, builds natively from your pushed source,
+copies the zip back, and terminates the instance.
 
 ```sh
 cd ./imagemagick-aws-lambda-2
@@ -47,7 +63,7 @@ AWS architecture name, ready for the release:
 - `imagemagick-7.1.2-al2023-arm64.zip`
 - `imagemagick-7.1.2-al2023-x86_64.zip`
 
-## Step 3: Create the GitHub release
+## Step 4: Create the GitHub release
 
 Authenticate the GitHub CLI first (once per machine):
 
@@ -55,7 +71,9 @@ Authenticate the GitHub CLI first (once per machine):
 gh auth login
 ```
 
-Then create the release:
+Then create the release. `gh release create` creates the `im-7.1.2-al2023` tag
+at the current tip of the remote default branch — i.e. the commit you pushed in
+Step 1:
 
 ```sh
 gh release create im-7.1.2-al2023 \
@@ -79,3 +97,25 @@ disabled), with resource limits widened for 48 MP photos.
 EOF
 )"
 ```
+
+To update assets on an existing release (e.g. after a rebuild), re-upload with
+`--clobber` instead of recreating it:
+
+```sh
+gh release upload im-7.1.2-al2023 imagemagick-7.1.2-al2023-*.zip \
+  --clobber -R mbucc/imagemagick-aws-lambda-2
+```
+
+## Fixing a tag created too early
+
+If you ran `gh release create` before pushing your commit, the tag
+`im-7.1.2-al2023` points at the old commit. Move it to the pushed commit and
+force-push the tag:
+
+```sh
+git tag -f im-7.1.2-al2023 master
+git push --force origin refs/tags/im-7.1.2-al2023
+```
+
+Refresh the release page to confirm it now shows the correct commit. Doing
+Step 1 first avoids ever needing this.
