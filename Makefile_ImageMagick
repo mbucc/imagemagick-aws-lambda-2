@@ -186,6 +186,8 @@ $(TARGET_DIR)/bin/identify: $(IMAGE_MAGICK_SOURCE) $(LIBS)
 		--disable-dependency-tracking \
 		--disable-shared \
 		--enable-static \
+		--with-quantum-depth=8 \
+		--disable-hdri \
 		--with-heic=yes \
 		--with-lcms=yes \
 		--with-security-policy=secure \

@@ -22,7 +22,7 @@ fail() { echo "check-policy: FAIL -- $1" >&2; exit 1; }
 echo "$INPUT" | grep -q 'policy.xml' \
     || fail "no policy.xml path in -list policy output (policy not loaded)"
 
-# 2. The four resource limits we widen for 48 MP photos must carry our values.
+# 2. The three dimension limits we widen for 48 MP photos must carry our values.
 #    -list policy prints each limit as a 'name:' line followed by a 'value:'
 #    line; pair them with awk and take the effective (last) value.
 check_resource() {
@@ -36,7 +36,6 @@ check_resource() {
 check_resource width  16KP
 check_resource height 16KP
 check_resource area   256MP
-check_resource memory 1GiB
 
 # 3. The `secure` hardening must be present: at least one coder/delegate is
 #    denied. The permissive/open policy denies nothing, so this proves we did

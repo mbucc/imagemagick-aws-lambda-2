@@ -7,9 +7,11 @@
 # (SVG, MSL, MVG, URL, ...) AND clamps resources hard: width/height/area
 # default to 8KP, which REJECTS a 48 MP iPhone photo (8064 x 6048).
 #
-# The coder/delegate lockdown stays; this only widens the resource limits
-# to fit a 48 MP source decoded at Q16 HDRI (~384 MiB pixel cache). See the
-# README "Security policy" section for the reasoning.
+# The coder/delegate lockdown stays; this only widens the DIMENSION limits
+# (width/height/area), which gate on pixel count. The `memory` limit is left at
+# the secure default: this is a Q8, non-HDRI build, so a 48 MP image decodes to
+# only ~186 MiB -- well under the default. See the README "Security policy" and
+# "Precision" sections for the reasoning.
 #
 # Usage: scripts/secure-policy-allow-48mp.sh path/to/result
 #   (defaults to ./result if no argument is given)
@@ -30,9 +32,8 @@ sed \
     -e 's|\(name="width" value="\)[^"]*"|\116KP"|' \
     -e 's|\(name="height" value="\)[^"]*"|\116KP"|' \
     -e 's|\(name="area" value="\)[^"]*"|\1256MP"|' \
-    -e 's|\(name="memory" value="\)[^"]*"|\11GiB"|' \
     "$POLICY" >"$TMP"
 mv "$TMP" "$POLICY"
 
-echo "secure-policy-allow-48mp: widened resource limits in $POLICY"
-grep -E 'name="(width|height|area|memory)"' "$POLICY" | sed 's/^[[:space:]]*/  /'
+echo "secure-policy-allow-48mp: widened dimension limits in $POLICY"
+grep -E 'name="(width|height|area)"' "$POLICY" | sed 's/^[[:space:]]*/  /'
