@@ -121,7 +121,6 @@ printf 'creating GitHub release %s ...\n' "$TAG"
 gh release create "$TAG" \
     "$ARM64_ZIP" \
     "$X86_64_ZIP" \
-    -R mbucc/imagemagick-aws-lambda-2 \
     --title "$TAG" \
     --verify-tag \
     --notes-from-tag \
