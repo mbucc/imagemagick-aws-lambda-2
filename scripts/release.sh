@@ -55,9 +55,11 @@ if ! git -C "$REPO_ROOT" branch -r --contains HEAD | grep -q 'origin/'; then
 fi
 printf 'HEAD is on origin.\n'
 
-printf 'checking tag %s does not already exist locally ...\n' "$TAG"
+printf 'fetching remote tags ...\n'
+git -C "$REPO_ROOT" fetch --tags
+printf 'checking tag %s does not already exist ...\n' "$TAG"
 if git -C "$REPO_ROOT" rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
-    printf 'error: tag %s already exists locally\n' "$TAG" >&2
+    printf 'error: tag %s already exists\n' "$TAG" >&2
     exit 1
 fi
 printf 'tag %s does not exist yet.\n' "$TAG"
