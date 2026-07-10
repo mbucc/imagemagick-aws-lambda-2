@@ -5,14 +5,21 @@
 # Release notes come from the annotated git tag message (--notes-from-tag).
 #
 # Usage:
-#   scripts/release.sh <revision>
+#   scripts/release.sh [--dry-run] <revision>
 #
 # Example:
 #   scripts/release.sh r2
+#   scripts/release.sh --dry-run r2
+
+DRY_RUN=0
+if [ "${1:-}" = "--dry-run" ]; then
+    DRY_RUN=1
+    shift
+fi
 
 REVISION="${1:-}"
 if [ -z "$REVISION" ]; then
-    printf 'usage: %s <revision>   e.g. r2\n' "$0" >&2
+    printf 'usage: %s [--dry-run] <revision>   e.g. r2\n' "$0" >&2
     exit 2
 fi
 
@@ -90,6 +97,14 @@ $X86_64_SHA  imagemagick-$VERSION-al2023-x86_64.zip
 \`\`\`
 EOF
 printf 'release notes generated.\n'
+
+if [ "$DRY_RUN" -eq 1 ]; then
+    printf '\n--- DRY RUN: tag and release notes preview ---\n\n'
+    printf 'tag: %s\n\n' "$TAG"
+    cat "$NOTES"
+    printf '\n--- DRY RUN complete, no tag created or pushed ---\n'
+    exit 0
+fi
 
 printf 'creating annotated git tag %s ...\n' "$TAG"
 git -C "$REPO_ROOT" tag -a "$TAG" -F "$NOTES"
