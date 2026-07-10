@@ -71,60 +71,22 @@ Authenticate the GitHub CLI first (once per machine):
 gh auth login
 ```
 
-Each release gets its own **immutable** tag — never reuse one. Encode the full
-ImageMagick version plus a build revision, and bump the revision (`-r1` → `-r2`
-→ …) whenever you rebuild the *same* ImageMagick version with different options
-(e.g. the Q16→Q8 change); reset to `-r1` on a new ImageMagick version.
+Each release gets its own **immutable** tag — never reuse one. The tag encodes
+the ImageMagick version (read from `Makefile_ImageMagick`) plus a build
+revision. Bump the revision (`r1` → `r2` → …) whenever you rebuild the *same*
+ImageMagick version with different options (e.g. the Q16→Q8 change); reset to
+`r1` on a new ImageMagick version.
 
-`gh release create` creates this tag at the current tip of the remote default
-branch — i.e. the commit you pushed in Step 1:
-
-```sh
-VERSION=7.1.2-27                 # ImageMagick version being released
-TAG=im-$VERSION-al2023-r1        # bump -r2, -r3, … on each rebuild of $VERSION
-
-gh release create "$TAG" \
-  imagemagick-7.1.2-al2023-arm64.zip \
-  imagemagick-7.1.2-al2023-x86_64.zip \
-  -R mbucc/imagemagick-aws-lambda-2 \
-  --title "$TAG" \
-  --notes "$(cat <<'EOF'
-Prebuilt ImageMagick Lambda layers for AL2023, built from source in a
-matching-arch environment (NOT from RPMs — dnf installs ImageMagick 6).
-
-Hardened with the `secure` policy (SVG/MSL/MVG/URL and external delegates
-disabled), with resource limits widened for 48 MP photos.
-
-## sha256
-
-```
-<arm64-sha256>   imagemagick-7.1.2-al2023-arm64.zip
-<x86_64-sha256>  imagemagick-7.1.2-al2023-x86_64.zip
-```
-EOF
-)"
-```
-
-A normal re-release gets a new `-r` tag. Use `--clobber` **only** to correct a
-release you *just* published and nobody has pinned yet — it swaps the bytes
-behind an existing URL, which breaks any consumer that already pinned its
-`sha256`:
+`scripts/release.sh` reads the version from `Makefile_ImageMagick`, computes
+sha256 checksums for both zips, creates an annotated git tag with the release
+notes as its message, pushes the tag, and publishes the GitHub release:
 
 ```sh
-gh release upload "$TAG" imagemagick-7.1.2-al2023-*.zip \
-  --clobber -R mbucc/imagemagick-aws-lambda-2
+scripts/release.sh r2
 ```
 
-## Fixing a tag created too early
+If you need to correct a release, bump to the next revision (`r3`, `r4`, …)
+and run the script again — never reuse an existing tag.
 
-If you ran `gh release create` before pushing your commit, the release tag
-points at the old commit. Move it to the pushed commit and force-push the tag
-(re-set `$TAG` first if you are in a new shell):
-
-```sh
-git tag -f "$TAG" master
-git push --force origin "refs/tags/$TAG"
-```
-
-Refresh the release page to confirm it now shows the correct commit. Doing
-Step 1 first avoids ever needing this.
+`scripts/release.sh` enforces this: it checks that HEAD is on an origin
+branch before creating the tag, and exits with an error if not.
