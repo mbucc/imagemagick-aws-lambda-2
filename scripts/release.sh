@@ -2,7 +2,8 @@
 # Create the GitHub release for an ImageMagick Lambda layer build.
 # Both arch zips must already exist in the repo root (produced by build-on-ec2.sh).
 # The ImageMagick version is read from Makefile_ImageMagick.
-# Release notes come from the annotated git tag message (--notes-from-tag).
+# Release notes are read from release-notes.txt (git-ignored) in the repo root;
+# the sha256 checksums are appended automatically.
 #
 # Usage:
 #   scripts/release.sh [--dry-run] <revision>
@@ -80,16 +81,16 @@ X86_64_SHA=$(shasum -a 256 "$X86_64_ZIP" | cut -d' ' -f1)
 printf 'arm64:  %s\n' "$ARM64_SHA"
 printf 'x86_64: %s\n' "$X86_64_SHA"
 
+NOTES_SRC="$REPO_ROOT/release-notes.txt"
+printf 'checking release-notes.txt exists ...\n'
+[ -f "$NOTES_SRC" ] || { printf 'error: missing %s\n' "$NOTES_SRC" >&2; exit 1; }
+
 printf 'generating release notes ...\n'
 NOTES=$(mktemp)
 trap 'rm -f "$NOTES"' EXIT
 
-cat > "$NOTES" <<EOF
-Prebuilt ImageMagick Lambda layers for AL2023, built from source in a
-matching-arch environment (NOT from RPMs -- dnf installs ImageMagick 6).
-
-Hardened with the \`secure\` policy (SVG/MSL/MVG/URL and external delegates
-disabled), with resource limits widened for 48 MP photos.
+cat "$NOTES_SRC" > "$NOTES"
+cat >> "$NOTES" <<EOF
 
 ## sha256
 
