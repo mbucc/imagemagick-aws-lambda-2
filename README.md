@@ -254,7 +254,7 @@ For more information, check out:
 
 * Gojko Adzic <https://gojko.net> — original author (2019)
 * Rémi Cartier — HEIC support and CI/deploy (2021)
-* Mark Bucciarelli <mkbucc@gmail.com> — Amazon Linux 2023 rework (2025)
+* Mark Bucciarelli <https://markbucciarelli.com> — Amazon Linux 2023 rework (2025)
 
 ## License
 
