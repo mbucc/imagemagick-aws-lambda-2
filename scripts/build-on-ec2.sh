@@ -220,9 +220,13 @@ rsync -az --delete \
 echo "Building layer natively on instance..."
 $SSH "$REMOTE_USER@$INSTANCE_IP" "
     set -e
-    # ImageMagick installs to /opt (its baked-in config path). /opt is empty on
-    # a fresh AL2023 box; hand it to our user so make can write it without sudo.
-    sudo mkdir -p /opt && sudo chown \$(id -u):\$(id -g) /opt
+    # ImageMagick installs to /opt (its baked-in config path). Recent AL2023
+    # AMIs ship /opt/aws (CloudFormation tools), so we clear /opt first --
+    # safe on this disposable instance -- before handing it to our user.
+    # The Makefile zips all of /opt, so a contaminated /opt produces a layer
+    # with unwanted files (the bug that prompted this comment).
+    sudo rm -rf /opt/*
+    sudo chown \$(id -u):\$(id -g) /opt
     cd $REMOTE_DIR
     make imagemagick-layer.zip
 "
