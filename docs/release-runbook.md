@@ -65,10 +65,12 @@ AWS architecture name, ready for the release:
 
 ## Step 4: Create the GitHub release
 
-Authenticate the GitHub CLI first (once per machine):
+Authenticate the GitHub CLI and set the default repo for this directory
+(once per machine; stored in `.git/config`, not global):
 
 ```sh
 gh auth login
+gh repo set-default mbucc/imagemagick-aws-lambda-2
 ```
 
 Each release gets its own **immutable** tag — never reuse one. The tag encodes
